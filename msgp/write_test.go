@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math"
 	"math/rand"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -401,5 +402,43 @@ func BenchmarkWriteTime(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		wr.WriteTime(t)
+	}
+}
+
+func TestWriteInterfaces(t *testing.T) {
+	var buf bytes.Buffer
+	wr := NewWriter(&buf)
+
+	secondPtr := new(time.Duration)
+	*secondPtr = time.Second
+	input := map[string]interface{}{
+		"aliased scalar type": time.Second,
+		"alias pointer":       secondPtr,
+		"slice":               []int64{100},
+		"array":               [1]int64{100},
+	}
+	expected := map[string]interface{}{
+		"aliased scalar type": int64(time.Second),
+		"alias pointer":       int64(time.Second),
+		"slice":               []int64{100},
+		"array":               []int64{100},
+	}
+
+	err := wr.WriteIntf(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = wr.Flush()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	decoded, err := NewReader(&buf).ReadIntf()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.DeepEqual(decoded, expected) {
+		t.Errorf("expected %+v, but got %+v", expected, decoded)
 	}
 }

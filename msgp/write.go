@@ -680,10 +680,22 @@ func (mw *Writer) WriteIntf(v interface{}) error {
 			return mw.WriteNil()
 		}
 		return mw.WriteIntf(val.Elem().Interface())
-	case reflect.Slice:
+	case reflect.Slice, reflect.Array:
 		return mw.writeSlice(val)
 	case reflect.Map:
 		return mw.writeMap(val)
+	case reflect.Bool:
+		return mw.WriteBool(val.Bool())
+	case reflect.Float32, reflect.Float64:
+		return mw.WriteFloat64(val.Float())
+	case reflect.Complex64, reflect.Complex128:
+		return mw.WriteComplex128(val.Complex())
+	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
+		return mw.WriteInt64(val.Int())
+	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+		return mw.WriteUint64(val.Uint())
+	case reflect.String:
+		return mw.WriteString(val.String())
 	}
 	return &ErrUnsupportedType{T: val.Type()}
 }
@@ -729,60 +741,6 @@ func (mw *Writer) writeSlice(v reflect.Value) (err error) {
 		}
 	}
 	return
-}
-
-func (mw *Writer) writeStruct(v reflect.Value) error {
-	if enc, ok := v.Interface().(Encodable); ok {
-		return enc.EncodeMsg(mw)
-	}
-	return fmt.Errorf("msgp: unsupported type: %s", v.Type())
-}
-
-func (mw *Writer) writeVal(v reflect.Value) error {
-	if !isSupported(v.Kind()) {
-		return fmt.Errorf("msgp: msgp/enc: type %q not supported", v.Type())
-	}
-
-	// shortcut for nil values
-	if v.IsNil() {
-		return mw.WriteNil()
-	}
-	switch v.Kind() {
-	case reflect.Bool:
-		return mw.WriteBool(v.Bool())
-
-	case reflect.Float32, reflect.Float64:
-		return mw.WriteFloat64(v.Float())
-
-	case reflect.Complex64, reflect.Complex128:
-		return mw.WriteComplex128(v.Complex())
-
-	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
-		return mw.WriteInt64(v.Int())
-
-	case reflect.Interface, reflect.Ptr:
-		if v.IsNil() {
-			mw.WriteNil()
-		}
-		return mw.writeVal(v.Elem())
-
-	case reflect.Map:
-		return mw.writeMap(v)
-
-	case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
-		return mw.WriteUint64(v.Uint())
-
-	case reflect.String:
-		return mw.WriteString(v.String())
-
-	case reflect.Slice, reflect.Array:
-		return mw.writeSlice(v)
-
-	case reflect.Struct:
-		return mw.writeStruct(v)
-
-	}
-	return fmt.Errorf("msgp: msgp/enc: type %q not supported", v.Type())
 }
 
 // is the reflect.Kind encodable?
